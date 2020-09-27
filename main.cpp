@@ -8,6 +8,38 @@
 #include <filesystem>
 #include <vector>
 
+// 標準出力にファイルディスクリプタの内容を出力する
+// エラー時には std::runtime_error を発生させる
+void printFD(const int fd)
+{
+    std::vector<char> rdBuf(1024, 0);
+    while (true)
+    {
+        const auto rdSize = read(fd, rdBuf.data(), rdBuf.size());
+        if (rdSize == -1)
+        {
+            const std::string err = "read error, " + std::string(strerror(errno));
+            throw std::runtime_error(err);
+        }
+        if (rdSize == 0)
+        {
+            return;
+        }
+
+        const auto wrSize = write(STDOUT_FILENO, rdBuf.data(), rdSize);
+        if (wrSize == -1)
+        {
+            const std::string err = "write error, " + std::string(strerror(errno));
+            throw std::runtime_error(err);
+        }
+        if (wrSize != rdSize)
+        {
+            const std::string err = "write size error, " + std::to_string(wrSize);
+            throw std::runtime_error(err);
+        }
+    }
+}
+
 // 標準出力にファイルの内容を出力する
 // エラー時には std::runtime_error を発生させる
 void printFile(const std::filesystem::path &path)
@@ -19,44 +51,36 @@ void printFile(const std::filesystem::path &path)
         throw std::runtime_error(err);
     }
 
-    std::vector<char> readBuff(1024, 0);
-    while (true)
+    try
     {
-        const auto readSize = read(fd, readBuff.data(), readBuff.size());
-        if (readSize == 0)
-        {
-            break;
-        }
-        if (readSize == -1)
-        {
-            const std::string err = "read error, " + std::string(strerror(errno));
-            close(fd);
-            throw std::runtime_error(err);
-        }
-
-        const auto writeSize = write(STDOUT_FILENO, readBuff.data(), readSize);
-        if (writeSize == -1)
-        {
-            const std::string err = "write error, " + std::string(strerror(errno));
-            close(fd);
-            throw std::runtime_error(err);
-        }
-        if (writeSize != readSize)
-        {
-            const std::string err = "write size error, " + std::to_string(writeSize);
-            close(fd);
-            throw std::runtime_error(err);
-        }
+        printFD(fd);
+    }
+    catch (const std::runtime_error &e)
+    {
+        close(fd);
+        const std::string err = "printFD error, " + std::string(e.what());
+        throw std::runtime_error(err);
     }
 
     close(fd);
 }
 
+void printStdIn()
+{
+    while (true)
+    {
+        printFD(STDIN_FILENO);
+    }
+}
+
 int main(int argc, char *argv[])
 {
+    int ret = 0;
+
     if (argc < 2)
     {
-        return 1;
+        printStdIn();
+        return ret;
     }
 
     for (int i = 1; i < argc; i++)
@@ -68,10 +92,11 @@ int main(int argc, char *argv[])
         }
         catch (const std::runtime_error &e)
         {
+            ret = 1;
             // perror(const char *s) だと、"s : strerror(errnum)" のような表記で標準エラー出力される
             fprintf(stderr, "%s: %s\n", path.c_str(), e.what());
         }
     }
 
-    return 0;
+    return ret;
 }
