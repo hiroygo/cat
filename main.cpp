@@ -92,9 +92,12 @@ int main(int argc, char *argv[])
         }
         catch (const std::runtime_error &e)
         {
+            // fprintf は今回は使わない
+            // fprintf ではなくて perror(const char *s) でもいいけど
+            // "s : strerror(errnum)" のような表記で標準エラー出力される
             ret = 1;
-            // perror(const char *s) だと、"s : strerror(errnum)" のような表記で標準エラー出力される
-            fprintf(stderr, "%s: %s\n", path.c_str(), e.what());
+            const std::string err = std::string(path.c_str()) + ": " + std::string(e.what()) + "\n";
+            write(STDERR_FILENO, err.c_str(), err.size());
         }
     }
 
