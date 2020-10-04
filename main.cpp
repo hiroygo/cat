@@ -75,7 +75,7 @@ void printStdIn()
 
 int main(int argc, char *argv[])
 {
-    int ret = 0;
+    int ret = EXIT_SUCCESS;
 
     if (argc < 2)
     {
@@ -95,7 +95,7 @@ int main(int argc, char *argv[])
             // fprintf は今回は使わない
             // fprintf ではなくて perror(const char *s) でもいいけど
             // "s : strerror(errnum)" のような表記で標準エラー出力される
-            ret = 1;
+            ret = EXIT_FAILURE;
             const std::string err = std::string(path.c_str()) + ": " + std::string(e.what()) + "\n";
             write(STDERR_FILENO, err.c_str(), err.size());
         }
